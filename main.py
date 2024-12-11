@@ -75,9 +75,9 @@ def search_knowledge(query, top_k=3):
 def generate_answer(query, context, language):
     try:
         if language == 'chinese':
-            prompt = f"已知：{context}\n问题：{query}\n回答："
+            prompt = f"以下是一些背景知识：\n{context}\n\n请基于上述背景知识回答下列问题：\n问题：{query}\n回答："
         else:
-            prompt = f"Context: {context}\nQuestion: {query}\nAnswer:"
+            prompt = f"Here is some background knowledge:\n{context}\n\nBased on the above context, please answer the following question:\nQuestion: {query}\nAnswer:"
 
         inputs = tokenizer(prompt, return_tensors="pt", max_length=512, truncation=True)
         outputs = generate_model.generate(inputs.input_ids, max_length=200, num_beams=3, early_stopping=True)
@@ -113,7 +113,10 @@ async def qa_endpoint(request: QueryRequest):
 
     # 检索知识库
     results = search_knowledge(query)
-    context = " ".join(results)
+    if language == 'chinese':
+        context = " ".join([res for res in results if any('\u4e00' <= char <= '\u9fff' for char in res)])
+    else:
+        context = " ".join([res for res in results if any('a' <= char.lower() <= 'z' for char in res)])
 
     # 生成回答
     answer = generate_answer(query, context, language)
