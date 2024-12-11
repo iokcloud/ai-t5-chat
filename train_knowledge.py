@@ -44,7 +44,8 @@ def build_indices():
 if __name__ == "__main__":
     # 示例：完整知识库加载
     full_knowledge_base = [
-        {"id": i, "text": f"Example knowledge {i}. 知识实例 {i}"} for i in range(1500)
+        {"id": i, "text": f"Example knowledge {i}." if i % 2 != 0 else f"知识实例 {i}"} for i in range(1500)
     ]
+
     split_and_save_knowledge_base(full_knowledge_base)
     build_indices()

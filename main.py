@@ -28,8 +28,8 @@ generate_model = AutoModelForSeq2SeqLM.from_pretrained(generate_model_name)
 
 # 知识库（示例）
 knowledge_base = [
-    "人工智能是研究如何让计算机完成需要人类智能才能完成的任务的一门学科。",
-    "Artificial intelligence (AI) is the simulation of human intelligence processes by machines.",
+    "人工智能是研究如何让计算机完成需要人类智能才能完成的任务的一门学科。Artificial intelligence (AI) is the simulation of human intelligence processes by machines.",
+    "Artificial intelligence (AI) is the simulation of human intelligence processes by machines.人工智能是研究如何让计算机完成需要人类智能才能完成的任务的一门学科。",
     "机器学习是人工智能的一个分支，专注于通过数据训练模型。",
     "Machine learning is a subset of AI that focuses on training models using data.",
     "深度学习是一种基于神经网络的机器学习方法。",

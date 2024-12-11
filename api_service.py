@@ -2,6 +2,7 @@ import os
 import json
 import faiss
 import numpy as np
+
 from sentence_transformers import SentenceTransformer
 from transformers import MT5Tokenizer, AutoModelForSeq2SeqLM
 from fastapi import FastAPI, HTTPException
@@ -16,8 +17,10 @@ INDEX_DIR = "index"
 
 # 模型初始化
 EMBEDDING_MODEL = SentenceTransformer('moka-ai/m3e-base')
-TOKENIZER = MT5Tokenizer.from_pretrained("google/mt5-small", legacy=False)
-GENERATE_MODEL = AutoModelForSeq2SeqLM.from_pretrained("google/mt5-small")
+# 加载 mT5 多语言生成模型
+generate_model_name = "google/mt5-small"
+tokenizer = MT5Tokenizer.from_pretrained(generate_model_name, legacy=False)
+GENERATE_MODEL = AutoModelForSeq2SeqLM.from_pretrained(generate_model_name)
 
 # 加载所有分块知识库和索引
 def load_all_knowledge_and_indices():
@@ -50,12 +53,38 @@ def search_knowledge(query, top_k=3):
     # 去重并按距离排序
     return list(set(results))[:top_k]
 
-# 生成回答
-def generate_answer(query, context):
-    prompt = f"Here is some background knowledge:\n{context}\n\nPlease answer the following question:\n{query}"
-    inputs = TOKENIZER(prompt, return_tensors="pt", truncation=True, max_length=512)
-    outputs = GENERATE_MODEL.generate(inputs.input_ids, max_length=200)
-    return TOKENIZER.decode(outputs[0], skip_special_tokens=True)
+# 更稳定的语言检测函数
+def detect_language(text):
+    if any('\u4e00' <= char <= '\u9fff' for char in text):
+        return 'chinese'
+    elif any('a' <= char.lower() <= 'z' for char in text):
+        return 'english'
+    else:
+        return 'unknown'
+
+# 生成回答增强
+def generate_answer(query, context, language):
+    try:
+        if language == 'chinese':
+            prompt = f"以下是一些背景知识：\n{context}\n\n请基于上述背景知识回答下列问题：\n问题：{query}\n回答："
+        else:
+            prompt = f"Here is some background knowledge:\n{context}\n\nBased on the above context, please answer the following question:\nQuestion: {query}\nAnswer:"
+
+        inputs = tokenizer(prompt, return_tensors="pt", max_length=512, truncation=True)
+        outputs = GENERATE_MODEL.generate(inputs.input_ids, max_length=200, num_beams=3, early_stopping=True)
+        answer = tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+        # 确保回答与语言一致
+        if language == 'chinese' and not any('\u4e00' <= char <= '\u9fff' for char in answer):
+            print(f"Warning: Generated answer not in Chinese: {answer}")
+            answer = "生成回答未正确匹配中文，请重新尝试。"
+        elif language == 'english' and not any('a' <= char.lower() <= 'z' for char in answer):
+            print(f"Warning: Generated answer not in English: {answer}")
+            answer = "The generated answer did not match English. Please try again."
+
+        return answer
+    except Exception as e:
+        return f"Error generating answer: {e}"
 
 # FastAPI 配置
 app = FastAPI()
@@ -69,13 +98,21 @@ async def qa_endpoint(request: QueryRequest):
     if not query:
         raise HTTPException(status_code=400, detail="Query cannot be empty")
 
-    # 检索知识
+    # 检测语言
+    language = detect_language(query)
+    if language == 'unknown':
+        raise HTTPException(status_code=400, detail="Unsupported language")
+
+    # 检索知识库
     results = search_knowledge(query)
-    context = " ".join(results)
+    if language == 'chinese':
+        context = " ".join([res for res in results if any('\u4e00' <= char <= '\u9fff' for char in res)])
+    else:
+        context = " ".join([res for res in results if any('a' <= char.lower() <= 'z' for char in res)])
 
     # 生成回答
-    answer = generate_answer(query, context)
-    return {"query": query, "context": context, "answer": answer}
+    answer = generate_answer(query, context, language)
+    return {"query": query, "language": language, "context": context, "answer": answer}
 
 @app.post("/add_knowledge/")
 async def add_knowledge(text: str):
