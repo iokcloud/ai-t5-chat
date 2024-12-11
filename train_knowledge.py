@@ -4,6 +4,9 @@ import faiss
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
+# 禁用联网请求
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
+
 EMBEDDING_MODEL = SentenceTransformer('moka-ai/m3e-base')
 
 # 知识库和索引存储路径

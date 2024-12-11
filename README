@@ -6,3 +6,6 @@ venv\Scripts\activate
 # macOS/Linux
 python3 -m venv venv
 source venv/bin/activate
+
+##api文档地址
+http://127.0.0.1:8000/docs
