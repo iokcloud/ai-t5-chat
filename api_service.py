@@ -18,7 +18,7 @@ INDEX_DIR = "index"
 # 模型初始化
 EMBEDDING_MODEL = SentenceTransformer('moka-ai/m3e-base')
 # 加载 mT5 多语言生成模型
-generate_model_name = "google/mt5-small"
+generate_model_name = "google/mt5-base" # google/mt5-small, google/mt5-base, google/mt5-large, google/mt5-xl
 tokenizer = MT5Tokenizer.from_pretrained(generate_model_name, legacy=False)
 GENERATE_MODEL = AutoModelForSeq2SeqLM.from_pretrained(generate_model_name)
 
